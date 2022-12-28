@@ -1,13 +1,15 @@
-training: !!bool "true"
+training: !!bool "True"
 device: 14, 15 #gpu id
 seed: 777
 ---
 data:
-    train_path: './dataVoxCeleb1/Audio/dev/processed'
-    train_path_unprocessed: './dataVoxCeleb1/Audio/dev/wav' #*/wav/speaker_id/session_id/file.wav
-    test_meta_path: './dataVoxCeleb1/Metadata/veri_test.txt'
-    test_path: './dataVoxCeleb1/Audio/test/processed'
-    test_path_unprocessed: './dataVoxCeleb1/Audio/test/wav'
+    train_path: 'F:\WJ\Speaker_Verification\dataset\LibriSpeech-SI\train'
+    train_path_unprocessed: 'F:\WJ\Speaker_Verification\dataset\LibriSpeech-SI\train_audio' #*/wav/speaker_id/session_id/file.wav
+    test_meta_path: 'F:\WJ\Speaker_Verification\dataset\veri_test_copy.txt'
+    # test_path: 'F:\WJ\Speaker_Verification\dataset\test'
+    test_path: 'F:\WJ\Speaker_Verification\dataset\LibriSpeech-SI\test'
+    test_path_unprocessed: 'F:\WJ\Speaker_Verification\dataset\LibriSpeech-SI\test_audio'
+    # test_path_unprocessed: 'F:\WJ\Speaker_Verification\dataset\test_audio\wav'
     feat_type: 'spec' #feature type: 'spec' (spectogram), 'logmel' (logmel spectogram)
     sr: 16000
     nfft: 512 #For mel spectrogram preprocess
@@ -22,7 +24,8 @@ model:
     ghost_centers: 2
     vlad_centers: 8
     dropout: 0.0
-    model_path: 'best.pth'
+    model_path: 'modelTResNet34_proj512_vlad8_ghost2_spk160_utt1_dropout0.0_featspec_lr0.001_optimAdam_losssi_wd0.0001_fr250.pth'
+    # model_path: 'modelTResNet34_proj512_vlad8_ghost2_spk160_utt1_dropout0.0_featspec_lr0.001_optimAdam_losssi_wd0.0001_fr250.pth'
 ---
 train:
     N: 160 #Number of speakers in batch
@@ -33,8 +36,8 @@ train:
     loss: 'si' #loss type: "si" (Speaker identification)
     warmup_epochs: 1 #number of warmup epochs with lr set to lr/10
     wd: 0.0001 #weight decay
-    epochs: 128 #Max training epoch
+    epochs: 48 #Max training epoch
     log_interval: 100 #Iterations before printing progress
     checkpoint_interval: 10 #test on sp. verification after #checkpoint_interval epochs
     checkpoint_dir: './speech_id_checkpoint'
-    restore: !!bool "false" #Resume training from previous model path
+    restore: !!bool "true" #Resume training from previous model path

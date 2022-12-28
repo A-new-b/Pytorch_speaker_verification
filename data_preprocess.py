@@ -24,8 +24,9 @@ def save_spectrogram_tisv_train():
         print("%dth speaker processing..."%i)
         os.makedirs(os.path.join(hp.data.train_path, hp.data.feat_type, "speaker%d"%i), \
                     exist_ok=True)
-        for j, utter_name in enumerate(glob.glob(folder+'/*/*')):
-            if utter_name[-4:] == '.wav':
+        for j, utter_name in enumerate(glob.glob(folder+'/*')):
+            if utter_name[-5:] == '.flac':
+
                 S = extract_all_feat(utter_name, mode = 'train')
                 np.save(os.path.join(hp.data.train_path, hp.data.feat_type, "speaker%d"%i, \
                                      "utt%d.npy"%j), S)
@@ -60,8 +61,23 @@ def save_spectrogram_tisv_test():
     #print(triplets.shape)
     #np.save(os.path.join(hp.data.test_path, hp.data.feat_type, "test_triplets.npy"), triplets)
 
+def save_spectrogram_tisv_test_Libri():
+    print("start test independent utterance feature extraction for the train set")
+    audio_path = glob.glob(hp.data.test_path_unprocessed + '/*')
+    # make folder to save processed train features
+    os.makedirs(os.path.join(hp.data.test_path, hp.data.feat_type), exist_ok=True)
+
+    total_num = len(audio_path)
+    print("*test total number: %d"%total_num)
+
+    for i, name in enumerate(audio_path):
+        print("%d speaker processing..."%i)
+        if name[-5:] == '.flac':
+            S = extract_all_feat(name, mode = 'train')
+            np.save(os.path.join(hp.data.test_path,"utt%d.npy"%i), S)
+
 
 if __name__ == "__main__":
-    save_spectrogram_tisv_train()
-    save_spectrogram_tisv_test()
+    # save_spectrogram_tisv_train()
+    save_spectrogram_tisv_test_Libri()
 

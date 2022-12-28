@@ -18,13 +18,16 @@ from hparam import hparam as hp
 from data_load import VoxCeleb, VoxCeleb_utter
 from speech_embedder_net import Resnet34_VLAD, SpeechEmbedder, GE2ELoss, SILoss, get_centroids, \
 get_cossim, HybridLoss
+from utils import extract_all_feat
+
 
 torch.manual_seed(hp.seed)
 np.random.seed(hp.seed)
 random.seed(hp.seed)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
-os.environ["CUDA_VISIBLE_DEVICES"] =str(hp.device) # for multiple gpus
+
+# os.environ["CUDA_VISIBLE_DEVICES"] =str(hp.device) # for multiple gpus
 
 def train(model_path):
     config_values = "model" + hp.model.type + "_proj" + str(hp.model.proj) + "_vlad" + str(hp.model.vlad_centers) \
@@ -50,6 +53,7 @@ def train(model_path):
     loss_fn = SILoss(hp.model.proj, train_dataset.num_of_spk).cuda()
     
     if hp.train.restore:
+        # pass
         embedder_net.load_state_dict(torch.load(os.path.join(hp.train.checkpoint_dir, model_path)))
         loss_fn.load_state_dict(torch.load(os.path.join(hp.train.checkpoint_dir, "loss_" + model_path)))
     #Both net and loss have trainable parameters
@@ -75,7 +79,7 @@ def train(model_path):
     for e in range(hp.train.epochs):
         step_decay(e, optimizer) #stage based lr scheduler
         total_loss = 0
-        
+        # print(1111111)
         for batch_id, (mel_db_batch, spk_id) in enumerate(train_loader):
             embedder_net.train().cuda()
             mel_db_batch = mel_db_batch.cuda()
@@ -91,8 +95,9 @@ def train(model_path):
             total_loss = total_loss + loss
             iteration += 1
             
-            if (batch_id + 1) % hp.train.log_interval == 0 or \
-               (batch_id + 1) % (len(train_dataset)//hp.train.N) == 0:
+            # if (batch_id + 1) % hp.train.log_interval == 0 or \
+            #    (batch_id + 1) % (len(train_dataset)//hp.train.N) == 0:
+            if True:
                 mesg = "{0}\tEpoch:{1}[{2}/{3}], Iteration:{4}\tLoss:{5:.4f}\tTLoss:{6:.4f}\t\n".format(
                         time.ctime(), e+1, batch_id+1, len(train_dataset)//hp.train.N, iteration,
                         loss, total_loss / (batch_id + 1))
@@ -131,8 +136,10 @@ def testVoxCeleb(model_path):
     embedder_net = Resnet34_VLAD()
     embedder_net = torch.nn.DataParallel(embedder_net)
     embedder_net = embedder_net.cuda()
-    embedder_net.load_state_dict(torch.load(model_path))
+
+    embedder_net.load_state_dict(torch.load(os.path.join(hp.train.checkpoint_dir, model_path)))
     embedder_net.eval()
+    
     
     verify_list = np.loadtxt(hp.data.test_meta_path, str)
     list1 = np.array([i[1] for i in verify_list])
@@ -160,6 +167,42 @@ def testVoxCeleb(model_path):
     #Compute EER
     print('==> computing eer')
     eer, thresh = calculate_eer(labels, np.array(scores))
+    mesg = ("\nEER : %0.4f (thres:%0.2f)\n"%(eer, thresh))
+    print(mesg)
+    # mesg += ("learning rate: {0:.8f}\n".format(optimizer.param_groups[1]['lr']))
+    return eer, thresh
+
+def testLibiCeleb(model_path):
+    #Load model
+    print('==> loading model({})'.format(model_path))
+    embedder_net = Resnet34_VLAD()
+    embedder_net = torch.nn.DataParallel(embedder_net)
+    embedder_net = embedder_net.cuda()
+
+    embedder_net.load_state_dict(torch.load(os.path.join(hp.train.checkpoint_dir, model_path)))
+    embedder_net.eval()
+    
+    verify_list = np.loadtxt(hp.data.test_meta_path, str)
+    print('==> computing unique vectors')
+        
+    scores, labels = [], []
+    for (label, el1, el2) in verify_list:
+        labels.append(int(label))
+        e1 = extract_all_feat(el1, mode = 'train')
+        e2 = extract_all_feat(el2, mode = 'test')
+        s1 = torch.Tensor(e1).unsqueeze(0)
+        e1 = embedder_net(s1.cuda())
+        s2 = torch.Tensor(e2).unsqueeze(0)
+        e2 = embedder_net(s2.cuda())
+        e1 = e1 / torch.norm(e1, dim=1).unsqueeze(1)
+        e2 = e2 / torch.norm(e2, dim=1).unsqueeze(1)
+        scores.append(torch.dot(e1.squeeze(0), e2.squeeze(0)).item())
+    #Compute EER
+    print('==> computing eer')
+    eer, thresh = calculate_eer(labels, np.array(scores))
+    mesg = ("\nEER : %0.4f (thres:%0.2f)\n"%(eer, thresh))
+    print(mesg)
+    # mesg += ("learning rate: {0:.8f}\n".format(optimizer.param_groups[1]['lr']))
     return eer, thresh
 
     
@@ -168,4 +211,4 @@ if __name__=="__main__":
     if hp.training:
         train(hp.model.model_path)
     else:
-        testVoxCeleb(hp.model.model_path)
+        testLibiCeleb(hp.model.model_path)
